@@ -20,12 +20,12 @@ Working notes for Claude on the lilgatchi project. Read this file and DESIGN.md 
 ## Repository layout
 
 - `index.html`: the page. Loads the scripts below in order with plain `<script>` tags.
-- `css/style.css`: all styling. The window is a 250 x 350 px `.card`. It is nearly full; new controls on the Pet tab need space taken from somewhere else (the portrait is 124 px).
-- `js/pet.js`: pet rules (stats, hunger steps, feed, medicine, train, lights, bedtime, mood) and the save format (`newSave`, `migrate`). No browser code, so Node can test it.
+- `css/style.css`: all styling. The window is a 250 x 350 px `.card`. Tabs: Pet, Status, Attributes, Debug; four tabs already fill the tab bar at 11 px text, so a fifth needs a different tab design. The Pet tab is nearly full (portrait 136 px, a row of three buttons, a 2 x 2 grid of care buttons).
+- `js/pet.js`: pet rules (species, stats, attributes, hunger steps, feed, medicine, train, lights, bedtime, mood) and the save format (`newSave`, `migrate`). `SPECIES`, `ATTRIBUTES`, and their display names live here. No browser code, so Node can test it.
 - `js/names.js`: random name generator with a block list of rude substrings.
-- `js/storage.js`: the only code that touches localStorage. The key stays `lilgatchi.save.v1` even though the data inside is now version 2; the `version` field inside the data is what counts. Swap this for file saving in the .exe.
-- `js/main.js`: page wiring, timers, the analog clock, blinking, floating text, tabs, debug tools. `ART` at the top holds the image paths; set `ART.blink` once a closed-eyes frame exists.
-- `assets/critter.jpg`: the owner's placeholder art.
+- `js/storage.js`: the only code that touches localStorage. The key stays `lilgatchi.save.v1` even though the data inside is now version 3; the `version` field inside the data is what counts. Swap this for file saving in the .exe.
+- `js/main.js`: page wiring, timers, the analog clock, blinking, floating text, tabs, the pet picker, debug tools. `ART` at the top maps each species to its pictures; set a species' `blink` once a closed-eyes frame exists. Meter rows on Status and Attributes are built in JS from `STATUS_METERS` and `Pet.ATTRIBUTES`.
+- `assets/frog.jpg`, `assets/clown.jpg`, `assets/dog.jpg`: the owner's placeholder art, one per species. The clown is pixel art and uses `image-rendering: pixelated` (the `.pixel` class).
 - `tests/run.js`: logic tests.
 
 ## How to run and test
@@ -39,9 +39,10 @@ Working notes for Claude on the lilgatchi project. Read this file and DESIGN.md 
 ## Conventions
 
 - Do not use ES modules (`import`/`export`, `type="module"`). Browsers block them on `file://` pages, which would break double-click opening. Each script instead attaches one global (`Pet`, `Names`, `LilStorage`) and, where useful, also exports through `module.exports` for Node tests.
-- Saved data shape (version 2): `{ version: 2, pet: { name, fullness, health, fitness, stepProgress, lightsOn, bedtime, wakeTime, lastUpdate }, settings: { speed, hungerPace, clockOffsetMs } }`. `bedtime` and `wakeTime` are minutes after midnight. If the shape changes, bump `version` and add an upgrade step in `Pet.migrate()` with a test, rather than discarding old saves. Version 1 saves are upgraded there already.
-- Time model: `pet.lastUpdate` is real clock time. Each tick, real elapsed time times `settings.speed` is fed to `Pet.advance(pet, gameMs, stepMs)`, where `stepMs` comes from `Pet.PACES[settings.hungerPace]`. `pet.stepProgress` is the fraction (0 to 1) of the way to the next step, stored as a fraction so that switching pace does not cause a burst of steps. Time away is caught up at 1x on load.
-- Clock model: the displayed time is `Date.now() + settings.clockOffsetMs`. Setting the time by hand sets the offset. At 2x speed each tick adds the extra elapsed time to the offset, which is how the clock runs fast. An offset under 1 second counts as "System clock".
+- Saved data shape (version 3): `{ version: 3, pet: { name, species, fullness, health, fitness, attributes: { rowdiness, angst, tism, sin, diligence }, stepProgress, lightsOn, bedtime, wakeTime, lastUpdate }, settings: { hungerPace, clockOffsetMs } }`. `bedtime` and `wakeTime` are minutes after midnight. If the shape changes, bump `version` and add an upgrade step in `Pet.migrate()` with a test, rather than discarding old saves. Versions 1 and 2 are upgraded there already (both become a frog).
+- With no valid save, `data` is `null` and the picker opens without Cancel. Code that runs on timers (`tick`, `render`, `blink`) must return early when `data` is null.
+- Time model: `pet.lastUpdate` is real clock time. Each tick, real elapsed time is fed to `Pet.advance(pet, gameMs, stepMs)`, where `stepMs` comes from `Pet.PACES[settings.hungerPace]`. `pet.stepProgress` is the fraction (0 to 1) of the way to the next step, stored as a fraction so that switching pace does not cause a burst of steps. Time away is caught up at 1x on load.
+- Clock model: the displayed time is `Date.now() + settings.clockOffsetMs`. Setting the time by hand sets the offset. An offset under 1 second counts as "System clock". There is no speed multiplier any more; the owner removed 2x speed, and the clock must not be tied to the hunger pace.
 - Randomness in pet rules (such as the training injury roll) takes an optional `rand` function so tests can force outcomes.
 
 ## Git workflow notes

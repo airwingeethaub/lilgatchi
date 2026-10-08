@@ -10,12 +10,14 @@
   <main class="card">
     <div class="tabs" role="tablist">
       <button class="tab" id="tab-pet" role="tab" aria-selected="true" aria-controls="panel-pet">Pet</button>
+      <button class="tab" id="tab-status" role="tab" aria-selected="false" aria-controls="panel-status">Status</button>
+      <button class="tab" id="tab-attributes" role="tab" aria-selected="false" aria-controls="panel-attributes">Attributes</button>
       <button class="tab" id="tab-debug" role="tab" aria-selected="false" aria-controls="panel-debug">Debug</button>
     </div>
 
     <section class="panel" id="panel-pet" role="tabpanel" aria-labelledby="tab-pet">
       <div class="portrait" id="portrait">
-        <img id="critter" alt="Your critter">
+        <img id="critter" alt="Your pet">
         <div class="zzz" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
         <div class="badge clock" id="clock" role="img">
           <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true">
@@ -41,21 +43,31 @@
         <span class="heart" aria-hidden="true">&#9829;</span>
       </div>
 
-      <div class="stats">
-        <span class="stat-label">Health</span>
-        <div class="pips health" id="health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="5"></div>
-        <span class="stat-label">Fullness</span>
-        <div class="pips fullness" id="fullness" role="meter" aria-label="Fullness" aria-valuemin="0" aria-valuemax="5"></div>
-        <span class="stat-label">Fitness</span>
-        <div class="pips fitness" id="fitness" role="meter" aria-label="Fitness" aria-valuemin="0" aria-valuemax="5"></div>
+      <div class="actions three">
+        <button class="btn outline" id="travel" disabled title="Coming soon">Travel</button>
+        <button class="btn outline" id="play" disabled title="Coming soon">Play</button>
+        <button class="btn outline" id="items" disabled title="Coming soon">Items</button>
       </div>
-
-      <div class="actions">
+      <div class="actions two">
         <button class="btn" id="feed">Feed</button>
         <button class="btn" id="medicine">Medicine</button>
         <button class="btn" id="train">Train</button>
         <button class="btn" id="lights">Lights off</button>
       </div>
+    </section>
+
+    <section class="panel" id="panel-status" role="tabpanel" aria-labelledby="tab-status" hidden>
+      <h2 class="panel-title">Status</h2>
+      <div class="meters" id="status-meters"></div>
+    </section>
+
+    <section class="panel" id="panel-attributes" role="tabpanel" aria-labelledby="tab-attributes" hidden>
+      <h2 class="panel-title">Attributes</h2>
+      <div class="species-row">
+        <span>Species</span>
+        <span class="species-value" id="species"></span>
+      </div>
+      <div class="meters grouped" id="attribute-meters"></div>
     </section>
 
     <section class="panel debug" id="panel-debug" role="tabpanel" aria-labelledby="tab-debug" hidden>
@@ -65,10 +77,6 @@
           <button class="seg" id="pace-normal" aria-pressed="true">5 min</button>
           <button class="seg" id="pace-fast" aria-pressed="false">10 sec</button>
         </div>
-      </div>
-      <div class="debug-row">
-        <span>2x speed</span>
-        <button class="toggle" id="speed" aria-pressed="false">Off</button>
       </div>
       <div class="debug-row">
         <span>Next hunger drop</span>
@@ -89,6 +97,13 @@
         </div>
       </div>
       <button class="btn secondary" id="reset">New pet</button>
+    </section>
+
+    <section class="picker" id="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title" hidden>
+      <h2 class="panel-title" id="picker-title">Choose your pet</h2>
+      <div class="picker-options" id="picker-options"></div>
+      <p class="hint picker-note" id="picker-note">Your current pet will be replaced.</p>
+      <button class="btn secondary" id="picker-cancel">Cancel</button>
     </section>
   </main>
 

@@ -1,4 +1,5 @@
-// Pet rules: stats, the passage of time, care actions, bedtime, and mood.
+// Pet rules: species, stats, attributes, the passage of time, care actions,
+// bedtime, and mood.
 // Also defines the save format and upgrades older saves.
 // This file has no browser-specific code, so it can be tested with Node.
 (function (root, factory) {
@@ -13,7 +14,17 @@
   'use strict';
 
   var MAX_STAT = 5;
-  var SAVE_VERSION = 2;
+  var SAVE_VERSION = 3;
+
+  // The three kinds of pet that can be chosen, in the order they are offered.
+  var SPECIES = ['frog', 'clown', 'dog'];
+  var SPECIES_NAMES = { frog: 'Frog', clown: 'Clown', dog: 'Dog' };
+
+  // Personality attributes. All start at 0; ways to raise them come later.
+  var ATTRIBUTES = ['rowdiness', 'angst', 'tism', 'sin', 'diligence'];
+  var ATTRIBUTE_NAMES = {
+    rowdiness: 'Rowdiness', angst: 'Angst', tism: '\u2019Tism', sin: 'Sin', diligence: 'Diligence'
+  };
 
   // How much game time passes between hunger steps, for each pace setting.
   var PACES = {
@@ -33,12 +44,20 @@
     return Math.min(max, Math.max(min, n));
   }
 
-  function create(name, now) {
+  function zeroAttributes() {
+    var attributes = {};
+    ATTRIBUTES.forEach(function (key) { attributes[key] = 0; });
+    return attributes;
+  }
+
+  function create(name, species, now) {
     return {
       name: name,
+      species: species,
       fullness: MAX_STAT,
       health: MAX_STAT,
       fitness: 0,
+      attributes: zeroAttributes(),
       stepProgress: 0, // Fraction (0 to 1) of the way to the next hunger step.
       lightsOn: true,
       bedtime: DEFAULT_BEDTIME,
@@ -48,15 +67,21 @@
   }
 
   function defaultSettings() {
-    return { speed: 1, hungerPace: 'normal', clockOffsetMs: 0 };
+    return { hungerPace: 'normal', clockOffsetMs: 0 };
   }
 
-  function newSave(name, now) {
-    return { version: SAVE_VERSION, pet: create(name, now), settings: defaultSettings() };
+  function newSave(name, species, now) {
+    return { version: SAVE_VERSION, pet: create(name, species, now), settings: defaultSettings() };
   }
 
   // Repairs any missing or out-of-range values in a loaded pet.
   function normalize(pet) {
+    pet.species = SPECIES.indexOf(pet.species) !== -1 ? pet.species : 'frog';
+    var attributes = pet.attributes && typeof pet.attributes === 'object' ? pet.attributes : {};
+    pet.attributes = {};
+    ATTRIBUTES.forEach(function (key) {
+      pet.attributes[key] = Math.round(clamp(attributes[key], 0, MAX_STAT, 0) * 2) / 2;
+    });
     pet.fullness = Math.round(clamp(pet.fullness, 0, MAX_STAT, MAX_STAT));
     pet.health = Math.round(clamp(pet.health, 0, MAX_STAT, MAX_STAT));
     pet.fitness = Math.round(clamp(pet.fitness, 0, MAX_STAT, 0) * 2) / 2;
@@ -68,7 +93,7 @@
   }
 
   function normalizeSettings(settings) {
-    settings.speed = settings.speed === 2 ? 2 : 1;
+    delete settings.speed; // The 2x speed setting was removed in version 3.
     settings.hungerPace = PACES[settings.hungerPace] ? settings.hungerPace : 'normal';
     settings.clockOffsetMs = clamp(settings.clockOffsetMs, -1e13, 1e13, 0);
     return settings;
@@ -88,6 +113,14 @@
       data.pet.stepProgress = isFinite(carry) ? carry / PACES.normal : 0;
       delete data.pet.carryMs;
       data.version = 2;
+    }
+    if (data.version === 2) {
+      // Version 2 had no species or attributes, and had a 2x speed setting.
+      // Every version 2 pet used the frog picture.
+      data.pet.species = 'frog';
+      data.pet.attributes = zeroAttributes();
+      if (data.settings) delete data.settings.speed;
+      data.version = 3;
     }
     if (data.version !== SAVE_VERSION) return null;
     data.settings = data.settings && typeof data.settings === 'object' ? data.settings : {};
@@ -179,6 +212,10 @@
   return {
     MAX_STAT: MAX_STAT,
     SAVE_VERSION: SAVE_VERSION,
+    SPECIES: SPECIES,
+    SPECIES_NAMES: SPECIES_NAMES,
+    ATTRIBUTES: ATTRIBUTES,
+    ATTRIBUTE_NAMES: ATTRIBUTE_NAMES,
     PACES: PACES,
     create: create,
     newSave: newSave,

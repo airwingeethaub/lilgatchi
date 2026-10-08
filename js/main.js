@@ -1,13 +1,24 @@
-// Connects the pet rules to the page: drawing, buttons, timers, the clock, and saving.
+// Connects the pet rules to the page: drawing, buttons, tabs, the pet picker,
+// timers, the clock, and saving.
 (function () {
   'use strict';
 
   var TICK_MS = 250;
 
-  // Critter art. When real art exists, set `blink` to a closed-eyes image
-  // (for example 'assets/critter-blink.png') and blinking will swap to it.
-  // While `blink` is null, the critter does a quick squash instead.
-  var ART = { idle: 'assets/critter.jpg', blink: null };
+  // Art for each species. When real art exists, set `blink` to a closed-eyes
+  // image (for example 'assets/frog-blink.png') and the pet will blink now and
+  // then by swapping to it. While `blink` is null, the pet does not blink.
+  var ART = {
+    frog: { idle: 'assets/frog.jpg', blink: null },
+    clown: { idle: 'assets/clown.jpg', blink: null },
+    dog: { idle: 'assets/dog.jpg', blink: null }
+  };
+
+  var STATUS_METERS = [
+    { key: 'health', label: 'Health' },
+    { key: 'fullness', label: 'Fullness' },
+    { key: 'fitness', label: 'Fitness' }
+  ];
 
   var MOOD_LABELS = { happy: 'Happy', okay: 'Okay', sad: 'Sad', sick: 'Sick' };
 
@@ -25,12 +36,15 @@
     sick: face('#c9e3b5', '<path d="M7 8.5l3 3M10 8.5l-3 3M14 8.5l3 3M17 8.5l-3 3"/><path d="M7.5 16.5q1.5-1.5 3 0t3 0t3 0"/>')
   };
 
-  var data;
+  var TABS = ['pet', 'status', 'attributes', 'debug'];
+
+  var data = null; // Null until a pet has been chosen.
   var els = {};
+  var meters = {}; // Meter elements by stat or attribute key.
   var shownMood = null;
 
   function persist() {
-    LilStorage.save(data);
+    if (data) LilStorage.save(data);
   }
 
   function stepMs() {
@@ -38,7 +52,7 @@
   }
 
   // The time shown on the clock: the system clock plus any offset from a
-  // manually set time or from running at 2x speed.
+  // time set by hand in the Debug tab.
   function clockNow() {
     return new Date(Date.now() + data.settings.clockOffsetMs);
   }
@@ -59,22 +73,43 @@
     return Math.floor(totalSeconds / 60) + ':' + pad(totalSeconds % 60);
   }
 
-  function buildPips(container) {
+  // Builds a labeled five-segment meter row and remembers it under `key`.
+  function buildMeter(container, key, label) {
+    var name = document.createElement('span');
+    name.className = 'meter-label';
+    name.textContent = label;
+
+    var pips = document.createElement('div');
+    pips.className = 'pips ' + key;
+    pips.setAttribute('role', 'meter');
+    pips.setAttribute('aria-label', label);
+    pips.setAttribute('aria-valuemin', '0');
+    pips.setAttribute('aria-valuemax', String(Pet.MAX_STAT));
     for (var i = 0; i < Pet.MAX_STAT; i++) {
       var pip = document.createElement('span');
       pip.className = 'pip';
-      container.appendChild(pip);
+      pips.appendChild(pip);
     }
+
+    var value = document.createElement('span');
+    value.className = 'meter-value mono';
+
+    container.appendChild(name);
+    container.appendChild(pips);
+    container.appendChild(value);
+    meters[key] = { pips: pips, value: value };
   }
 
   // Fills whole segments, plus a half segment for values such as 2.5.
-  function renderPips(container, value) {
-    var pips = container.children;
+  function renderMeter(key, value) {
+    var meter = meters[key];
+    var pips = meter.pips.children;
     for (var i = 0; i < pips.length; i++) {
       pips[i].classList.toggle('on', i + 1 <= value);
       pips[i].classList.toggle('half', i < value && i + 1 > value);
     }
-    container.setAttribute('aria-valuenow', String(value));
+    meter.pips.setAttribute('aria-valuenow', String(value));
+    meter.value.textContent = String(value);
   }
 
   function setHand(el, degrees) {
@@ -95,14 +130,23 @@
   }
 
   function render() {
+    if (!data) return;
     var pet = data.pet;
     var now = clockNow();
 
+    var art = ART[pet.species];
+    if (els.critter.getAttribute('src') !== art.idle && !els.critter.dataset.blinking) {
+      els.critter.setAttribute('src', art.idle);
+    }
+    els.critter.alt = pet.name + ' the ' + Pet.SPECIES_NAMES[pet.species];
+    els.portrait.classList.toggle('pixel', pet.species === 'clown');
+
     els.name.textContent = pet.name;
     els.name.title = pet.name;
-    renderPips(els.health, pet.health);
-    renderPips(els.fullness, pet.fullness);
-    renderPips(els.fitness, pet.fitness);
+
+    STATUS_METERS.forEach(function (m) { renderMeter(m.key, pet[m.key]); });
+    Pet.ATTRIBUTES.forEach(function (key) { renderMeter(key, pet.attributes[key]); });
+    els.species.textContent = Pet.SPECIES_NAMES[pet.species];
 
     var mood = Pet.mood(pet);
     if (mood !== shownMood) {
@@ -122,29 +166,22 @@
     els.lights.textContent = pet.lightsOn ? 'Lights off' : 'Lights on';
     els.lights.setAttribute('aria-pressed', String(!pet.lightsOn));
 
-    var fast = data.settings.speed === 2;
-    els.speed.textContent = fast ? 'On' : 'Off';
-    els.speed.setAttribute('aria-pressed', String(fast));
-    els.speed.classList.toggle('active', fast);
-
     var pace = data.settings.hungerPace;
     els.paceNormal.setAttribute('aria-pressed', String(pace === 'normal'));
     els.paceFast.setAttribute('aria-pressed', String(pace === 'fast'));
 
-    els.countdown.textContent = formatCountdown(Pet.msUntilNextStep(pet, stepMs()) / data.settings.speed);
+    els.countdown.textContent = formatCountdown(Pet.msUntilNextStep(pet, stepMs()));
     var onSystemClock = Math.abs(data.settings.clockOffsetMs) < 1000;
     els.clockMode.textContent = onSystemClock ? 'System clock' : 'Custom time';
     els.clockSystem.disabled = onSystemClock;
   }
 
   function tick() {
+    if (!data) return;
     var now = Date.now();
     var realMs = Math.max(0, now - data.pet.lastUpdate);
     data.pet.lastUpdate = now;
-    var speed = data.settings.speed;
-    // At 2x, the clock also runs fast: it gains the extra time as an offset.
-    data.settings.clockOffsetMs += realMs * (speed - 1);
-    Pet.advance(data.pet, realMs * speed, stepMs());
+    Pet.advance(data.pet, realMs, stepMs());
     render();
     persist();
   }
@@ -165,14 +202,17 @@
     setTimeout(function () { el.remove(); }, 1300);
   }
 
+  // Blinks only if the species has a closed-eyes picture.
   function blink() {
-    if (Pet.isAsleep(data.pet, clockNow())) return; // Eyes are already closed.
-    if (ART.blink) {
-      els.critter.src = ART.blink;
-      setTimeout(function () { els.critter.src = ART.idle; }, 140);
-    } else {
-      playAnimation('blink', 180);
-    }
+    if (!data) return;
+    var art = ART[data.pet.species];
+    if (!art.blink || Pet.isAsleep(data.pet, clockNow())) return;
+    els.critter.dataset.blinking = '1';
+    els.critter.setAttribute('src', art.blink);
+    setTimeout(function () {
+      delete els.critter.dataset.blinking;
+      els.critter.setAttribute('src', ART[data.pet.species].idle);
+    }, 140);
   }
 
   function scheduleBlink() {
@@ -184,15 +224,58 @@
   }
 
   function showTab(name) {
-    var isPet = name === 'pet';
-    els.tabPet.setAttribute('aria-selected', String(isPet));
-    els.tabDebug.setAttribute('aria-selected', String(!isPet));
-    els.panelPet.hidden = !isPet;
-    els.panelDebug.hidden = isPet;
-    if (!isPet) {
+    TABS.forEach(function (tab) {
+      var selected = tab === name;
+      els['tab_' + tab].setAttribute('aria-selected', String(selected));
+      els['panel_' + tab].hidden = !selected;
+    });
+    if (name === 'debug') {
       var now = clockNow();
       els.clockInput.value = pad(now.getHours()) + ':' + pad(now.getMinutes());
     }
+  }
+
+  // Opens the pet picker. `canCancel` is false on the very first run, when
+  // there is no current pet to go back to.
+  function openPicker(canCancel) {
+    els.pickerNote.hidden = !canCancel;
+    els.pickerCancel.hidden = !canCancel;
+    els.picker.hidden = false;
+    var first = els.pickerOptions.querySelector('button');
+    if (first) first.focus();
+  }
+
+  function closePicker() {
+    els.picker.hidden = true;
+  }
+
+  function choosePet(species) {
+    var settings = data ? data.settings : null;
+    data = Pet.newSave(Names.generate(), species, Date.now());
+    if (settings) data.settings = settings; // Keep the debug settings.
+    shownMood = null;
+    closePicker();
+    showTab('pet');
+    render();
+    persist();
+  }
+
+  function buildPicker() {
+    Pet.SPECIES.forEach(function (species) {
+      var button = document.createElement('button');
+      button.className = 'pick';
+      button.dataset.species = species;
+      var img = document.createElement('img');
+      img.src = ART[species].idle;
+      img.alt = '';
+      if (species === 'clown') img.className = 'pixel';
+      var label = document.createElement('span');
+      label.textContent = Pet.SPECIES_NAMES[species];
+      button.appendChild(img);
+      button.appendChild(label);
+      button.addEventListener('click', function () { choosePet(species); });
+      els.pickerOptions.appendChild(button);
+    });
   }
 
   // Runs an action after bringing time up to date, then redraws and saves.
@@ -206,8 +289,9 @@
   }
 
   function bindEvents() {
-    els.tabPet.addEventListener('click', function () { showTab('pet'); });
-    els.tabDebug.addEventListener('click', function () { showTab('debug'); });
+    TABS.forEach(function (tab) {
+      els['tab_' + tab].addEventListener('click', function () { showTab(tab); });
+    });
 
     els.feed.addEventListener('click', act(function () {
       if (Pet.feed(data.pet)) playAnimation('munch', 400);
@@ -226,10 +310,6 @@
 
     els.lights.addEventListener('click', act(function () {
       Pet.toggleLights(data.pet);
-    }));
-
-    els.speed.addEventListener('click', act(function () {
-      data.settings.speed = data.settings.speed === 2 ? 1 : 2;
     }));
 
     els.paceNormal.addEventListener('click', act(function () {
@@ -254,49 +334,44 @@
       els.clockInput.value = pad(now.getHours()) + ':' + pad(now.getMinutes());
     }));
 
-    els.reset.addEventListener('click', function () {
-      if (window.confirm('Start over with a new pet? The current pet will be lost.')) {
-        var settings = data.settings;
-        data = Pet.newSave(Names.generate(), Date.now());
-        data.settings = settings; // Keep the debug settings.
-        render();
-        persist();
-        showTab('pet');
-      }
-    });
+    els.reset.addEventListener('click', function () { openPicker(true); });
+    els.pickerCancel.addEventListener('click', closePicker);
   }
 
   function init() {
     var ids = {
-      tabPet: 'tab-pet', tabDebug: 'tab-debug', panelPet: 'panel-pet', panelDebug: 'panel-debug',
       portrait: 'portrait', critter: 'critter', mood: 'mood', floaters: 'floaters',
       clock: 'clock', handHour: 'hand-hour', handMinute: 'hand-minute', handSecond: 'hand-second',
-      name: 'name', health: 'health', fullness: 'fullness', fitness: 'fitness',
+      name: 'name', species: 'species', statusMeters: 'status-meters', attributeMeters: 'attribute-meters',
       feed: 'feed', medicine: 'medicine', train: 'train', lights: 'lights',
-      speed: 'speed', paceNormal: 'pace-normal', paceFast: 'pace-fast', countdown: 'countdown',
+      paceNormal: 'pace-normal', paceFast: 'pace-fast', countdown: 'countdown',
       clockReadout: 'clock-readout', clockInput: 'clock-input', clockSet: 'clock-set',
-      clockMode: 'clock-mode', clockSystem: 'clock-system', reset: 'reset'
+      clockMode: 'clock-mode', clockSystem: 'clock-system', reset: 'reset',
+      picker: 'picker', pickerOptions: 'picker-options', pickerNote: 'picker-note', pickerCancel: 'picker-cancel'
     };
     Object.keys(ids).forEach(function (key) { els[key] = document.getElementById(ids[key]); });
+    TABS.forEach(function (tab) {
+      els['tab_' + tab] = document.getElementById('tab-' + tab);
+      els['panel_' + tab] = document.getElementById('panel-' + tab);
+    });
 
-    els.critter.src = ART.idle;
-    buildPips(els.health);
-    buildPips(els.fullness);
-    buildPips(els.fitness);
+    STATUS_METERS.forEach(function (m) { buildMeter(els.statusMeters, m.key, m.label); });
+    Pet.ATTRIBUTES.forEach(function (key) { buildMeter(els.attributeMeters, key, Pet.ATTRIBUTE_NAMES[key]); });
+    buildPicker();
+    bindEvents();
 
     var now = Date.now();
     data = Pet.migrate(LilStorage.load());
     if (data) {
-      // Time keeps passing while the window is closed, at normal speed.
+      // Time keeps passing while the window is closed.
       Pet.advance(data.pet, Math.max(0, now - data.pet.lastUpdate), stepMs());
       data.pet.lastUpdate = now;
+      render();
+      persist();
     } else {
-      data = Pet.newSave(Names.generate(), now);
+      openPicker(false); // First run: choose a pet before anything else.
     }
 
-    bindEvents();
-    render();
-    persist();
     setInterval(tick, TICK_MS);
     scheduleBlink();
   }

@@ -14,9 +14,26 @@
     </div>
 
     <section class="panel" id="panel-pet" role="tabpanel" aria-labelledby="tab-pet">
-      <div class="portrait">
+      <div class="portrait" id="portrait">
         <img id="critter" alt="Your critter">
-        <div class="mood" id="mood" role="img"></div>
+        <div class="zzz" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
+        <div class="badge clock" id="clock" role="img">
+          <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true">
+            <circle cx="20" cy="20" r="18" fill="#fffaf2" stroke="#3b3530" stroke-width="2"/>
+            <g stroke="#3b3530" stroke-width="2" stroke-linecap="round">
+              <line x1="20" y1="4.5" x2="20" y2="7.5"/>
+              <line x1="35.5" y1="20" x2="32.5" y2="20"/>
+              <line x1="20" y1="35.5" x2="20" y2="32.5"/>
+              <line x1="4.5" y1="20" x2="7.5" y2="20"/>
+            </g>
+            <line id="hand-hour" x1="20" y1="20" x2="20" y2="11" stroke="#3b3530" stroke-width="3" stroke-linecap="round"/>
+            <line id="hand-minute" x1="20" y1="20" x2="20" y2="7" stroke="#3b3530" stroke-width="2" stroke-linecap="round"/>
+            <line id="hand-second" x1="20" y1="22" x2="20" y2="6.5" stroke="#e4566f" stroke-width="1" stroke-linecap="round"/>
+            <circle cx="20" cy="20" r="1.8" fill="#3b3530"/>
+          </svg>
+        </div>
+        <div class="badge mood" id="mood" role="img"></div>
+        <div class="floaters" id="floaters" aria-live="polite"></div>
       </div>
 
       <div class="name">
@@ -29,12 +46,26 @@
         <div class="pips health" id="health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="5"></div>
         <span class="stat-label">Fullness</span>
         <div class="pips fullness" id="fullness" role="meter" aria-label="Fullness" aria-valuemin="0" aria-valuemax="5"></div>
+        <span class="stat-label">Fitness</span>
+        <div class="pips fitness" id="fitness" role="meter" aria-label="Fitness" aria-valuemin="0" aria-valuemax="5"></div>
       </div>
 
-      <button class="btn" id="feed">Feed</button>
+      <div class="actions">
+        <button class="btn" id="feed">Feed</button>
+        <button class="btn" id="medicine">Medicine</button>
+        <button class="btn" id="train">Train</button>
+        <button class="btn" id="lights">Lights off</button>
+      </div>
     </section>
 
     <section class="panel debug" id="panel-debug" role="tabpanel" aria-labelledby="tab-debug" hidden>
+      <div class="debug-row">
+        <span>Hunger every</span>
+        <div class="segmented" role="group" aria-label="Hunger pace">
+          <button class="seg" id="pace-normal" aria-pressed="true">5 min</button>
+          <button class="seg" id="pace-fast" aria-pressed="false">10 sec</button>
+        </div>
+      </div>
       <div class="debug-row">
         <span>2x speed</span>
         <button class="toggle" id="speed" aria-pressed="false">Off</button>
@@ -42,6 +73,20 @@
       <div class="debug-row">
         <span>Next hunger drop</span>
         <span class="mono" id="countdown"></span>
+      </div>
+      <div class="debug-block">
+        <div class="debug-row">
+          <span>Clock</span>
+          <span class="mono" id="clock-readout"></span>
+        </div>
+        <div class="debug-row">
+          <input type="time" id="clock-input" aria-label="Set clock time">
+          <button class="small-btn" id="clock-set">Set</button>
+        </div>
+        <div class="debug-row">
+          <span class="hint" id="clock-mode"></span>
+          <button class="small-btn" id="clock-system">Use system clock</button>
+        </div>
       </div>
       <button class="btn secondary" id="reset">New pet</button>
     </section>

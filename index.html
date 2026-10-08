@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lilgatchi</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tab-pet" role="tab" aria-selected="true" aria-controls="panel-pet">Pet</button>
+      <button class="tab" id="tab-debug" role="tab" aria-selected="false" aria-controls="panel-debug">Debug</button>
+    </div>
+
+    <section class="panel" id="panel-pet" role="tabpanel" aria-labelledby="tab-pet">
+      <div class="portrait">
+        <img id="critter" alt="Your critter">
+        <div class="mood" id="mood" role="img"></div>
+      </div>
+
+      <div class="name">
+        <span class="name-text" id="name"></span>
+        <span class="heart" aria-hidden="true">&#9829;</span>
+      </div>
+
+      <div class="stats">
+        <span class="stat-label">Health</span>
+        <div class="pips health" id="health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="5"></div>
+        <span class="stat-label">Fullness</span>
+        <div class="pips fullness" id="fullness" role="meter" aria-label="Fullness" aria-valuemin="0" aria-valuemax="5"></div>
+      </div>
+
+      <button class="btn" id="feed">Feed</button>
+    </section>
+
+    <section class="panel debug" id="panel-debug" role="tabpanel" aria-labelledby="tab-debug" hidden>
+      <div class="debug-row">
+        <span>2x speed</span>
+        <button class="toggle" id="speed" aria-pressed="false">Off</button>
+      </div>
+      <div class="debug-row">
+        <span>Next hunger drop</span>
+        <span class="mono" id="countdown"></span>
+      </div>
+      <button class="btn secondary" id="reset">New pet</button>
+    </section>
+  </main>
+
+  <script src="js/storage.js"></script>
+  <script src="js/names.js"></script>
+  <script src="js/pet.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

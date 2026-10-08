@@ -8,6 +8,7 @@
   --health: #e4566f;
   --fullness: #f0a23a;
   --fitness: #4f8fd6;
+  --cleanliness: #3fb3b0;
   --attribute: #9a6fc4;
   --pip-off: #ece4d7;
   --accent: #5f9e62;
@@ -17,26 +18,28 @@
 
 * { box-sizing: border-box; }
 
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; min-height: 100%; }
 
 body {
+  min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* The window: roughly the size of a pack of playing cards. */
+/* The window: 500 x 700, double the original playing-card size. */
 .card {
   position: relative;
-  width: 250px;
-  height: 350px;
+  width: 500px;
+  height: 700px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 6px 20px rgba(60, 40, 20, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(60, 40, 20, 0.14);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -48,11 +51,11 @@ body {
   flex: 1;
   min-width: 0;
   font: inherit;
-  font-size: 11px;
-  padding: 6px 0 5px;
+  font-size: 15px;
+  padding: 12px 0 10px;
   background: none;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   color: var(--muted);
   cursor: pointer;
 }
@@ -61,7 +64,7 @@ body {
 
 .panel {
   flex: 1;
-  padding: 12px 16px;
+  padding: 24px 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -71,13 +74,13 @@ body {
 
 .panel-title {
   align-self: flex-start;
-  margin: 0 0 12px;
-  font-size: 14px;
+  margin: 0 0 20px;
+  font-size: 20px;
   font-weight: 700;
 }
 
 /* Pet picture, with the clock and mood badges on its top corners. */
-.portrait { position: relative; width: 136px; height: 136px; margin-top: 4px; }
+.portrait { position: relative; width: 360px; height: 360px; margin-top: 8px; }
 
 .portrait img {
   display: block;
@@ -86,42 +89,52 @@ body {
   object-fit: cover;
   object-position: 40% 40%;
   background: #000;
-  border: 2px solid var(--line);
-  border-radius: 12px;
+  border: 3px solid var(--line);
+  border-radius: 18px;
   transform-origin: 50% 100%;
   transition: filter 0.4s ease;
 }
 
 /* Pixel art stays crisp instead of blurring when resized. */
-.portrait.pixel img, .pick img.pixel { image-rendering: pixelated; }
+.portrait.pixel img, .pick img.pixel, .scene-pet.pixel { image-rendering: pixelated; }
 
-.portrait.dark img { filter: brightness(0.32) saturate(0.6); }
+.portrait.dark img, .portrait.dark .poops { filter: brightness(0.32) saturate(0.6); }
 
 .portrait img.munch { animation: munch 0.4s ease-in-out; }
 @keyframes munch { 30% { transform: scale(1.05); } 65% { transform: scale(0.98); } }
 
 .portrait img.hop { animation: hop 0.4s ease-out; }
-@keyframes hop { 40% { transform: translateY(-8px); } 70% { transform: translateY(1px); } }
+@keyframes hop { 40% { transform: translateY(-14px); } 70% { transform: translateY(2px); } }
 
 .badge {
   position: absolute;
-  top: -9px;
-  width: 34px;
-  height: 34px;
+  top: -14px;
+  width: 54px;
+  height: 54px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--card);
-  border: 2px solid var(--line);
+  border: 3px solid var(--line);
   border-radius: 50%;
 }
 
 .badge svg { display: block; }
-.mood { right: -9px; }
-.clock { left: -9px; }
+.mood { right: -14px; }
+.clock { left: -14px; }
+
+/* Poop on the picture. Each is placed at a saved spot, in percent. */
+.poops { position: absolute; inset: 0; pointer-events: none; transition: filter 0.4s ease; }
+.poop {
+  position: absolute;
+  font-size: 32px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
 
 /* Floating Z's, shown only while the pet is asleep. */
-.zzz { position: absolute; right: 40px; top: 68px; pointer-events: none; display: none; }
+.zzz { position: absolute; right: 96px; top: 170px; pointer-events: none; display: none; }
 .portrait.asleep .zzz { display: block; }
 
 .zzz span {
@@ -130,19 +143,19 @@ body {
   top: 0;
   color: #ffffff;
   font-weight: 800;
-  text-shadow: 0 0 5px rgba(140, 165, 255, 0.9);
+  text-shadow: 0 0 6px rgba(140, 165, 255, 0.9);
   opacity: 0;
   animation: float-z 2.4s ease-out infinite;
 }
 
-.zzz span:nth-child(1) { font-size: 14px; animation-delay: 0s; }
-.zzz span:nth-child(2) { font-size: 17px; animation-delay: 0.8s; }
-.zzz span:nth-child(3) { font-size: 20px; animation-delay: 1.6s; }
+.zzz span:nth-child(1) { font-size: 22px; animation-delay: 0s; }
+.zzz span:nth-child(2) { font-size: 28px; animation-delay: 0.8s; }
+.zzz span:nth-child(3) { font-size: 34px; animation-delay: 1.6s; }
 
 @keyframes float-z {
   0% { opacity: 0; transform: translate(0, 0); }
   20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(14px, -34px); }
+  100% { opacity: 0; transform: translate(24px, -70px); }
 }
 
 /* Short messages that float up over the picture, such as "+1" or "Ouch!". */
@@ -153,9 +166,10 @@ body {
   left: 50%;
   top: 40%;
   transform: translateX(-50%);
-  font-size: 16px;
+  font-size: 26px;
   font-weight: 800;
-  text-shadow: 0 1px 0 #fff, 0 0 4px #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #fff, 0 0 6px #fff;
   animation: float-up 1.2s ease-out forwards;
 }
 
@@ -163,35 +177,35 @@ body {
 .floater.bad { color: var(--bad); }
 
 @keyframes float-up {
-  0% { opacity: 0; transform: translate(-50%, 6px); }
+  0% { opacity: 0; transform: translate(-50%, 10px); }
   15% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -36px); }
+  100% { opacity: 0; transform: translate(-50%, -60px); }
 }
 
 .name {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   max-width: 100%;
-  margin: 8px 0 8px;
-  font-size: 15px;
+  margin: 16px 0 18px;
+  font-size: 24px;
   font-weight: 700;
 }
 
 .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.heart { color: var(--heart); font-size: 14px; }
+.heart { color: var(--heart); font-size: 22px; }
 
 /* Buttons on the Pet tab. */
-.actions { width: 100%; display: grid; gap: 6px; }
+.actions { width: 100%; display: grid; gap: 10px; }
 .actions.three { grid-template-columns: repeat(3, 1fr); }
-.actions.two { grid-template-columns: 1fr 1fr; margin-top: auto; }
+.actions.five { grid-template-columns: repeat(5, 1fr); margin-top: auto; gap: 8px; }
 
 .btn {
   width: 100%;
-  padding: 6px 8px;
+  padding: 11px 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--accent-ink);
   background: var(--accent);
@@ -200,10 +214,13 @@ body {
   cursor: pointer;
 }
 
+.actions.five .btn { padding: 11px 2px; font-size: 14px; }
+
 .btn:hover:not(:disabled) { filter: brightness(1.06); }
 .btn:disabled { opacity: 0.45; cursor: default; }
-.btn.outline { color: var(--ink); background: none; border: 1px solid var(--line); padding: 5px 4px; }
-.btn.secondary { margin-top: auto; padding: 7px 8px; color: var(--ink); background: none; border: 1px solid var(--line); }
+.btn.outline { color: var(--ink); background: none; border: 2px solid var(--line); padding: 9px 8px; }
+.btn.outline:hover:not(:disabled) { border-color: var(--accent); filter: none; }
+.btn.secondary { margin-top: auto; padding: 12px 8px; color: var(--ink); background: none; border: 2px solid var(--line); }
 
 #lights { color: var(--ink); background: var(--pip-off); }
 #lights[aria-pressed="true"] { color: #fff; background: #3d4466; }
@@ -212,113 +229,186 @@ body {
 .meters {
   width: 100%;
   display: grid;
-  grid-template-columns: auto 1fr 26px;
-  gap: 12px 8px;
+  grid-template-columns: auto 1fr 40px;
+  gap: 22px 14px;
   align-items: center;
-  font-size: 12px;
+  font-size: 16px;
 }
 
-.meters.grouped { padding-top: 12px; border-top: 1px solid var(--line); gap: 10px 8px; }
+.meters.grouped { padding-top: 22px; border-top: 1px solid var(--line); gap: 18px 14px; }
 
 .meter-label { color: var(--muted); }
-.meter-value { text-align: right; font-size: 11px; color: var(--muted); }
+.meter-value { text-align: right; font-size: 15px; color: var(--muted); }
 
-.pips { display: flex; gap: 3px; }
-.pip { flex: 1; height: 9px; border-radius: 3px; background: var(--pip-off); }
+.pips { display: flex; gap: 6px; }
+.pip { flex: 1; height: 16px; border-radius: 5px; background: var(--pip-off); }
 .pip.on { background: var(--attribute); }
 .pip.half { background: linear-gradient(90deg, var(--attribute) 50%, var(--pip-off) 50%); }
 .health .pip.on { background: var(--health); }
+.health .pip.half { background: linear-gradient(90deg, var(--health) 50%, var(--pip-off) 50%); }
 .fullness .pip.on { background: var(--fullness); }
 .fitness .pip.on { background: var(--fitness); }
 .fitness .pip.half { background: linear-gradient(90deg, var(--fitness) 50%, var(--pip-off) 50%); }
+.cleanliness .pip.on { background: var(--cleanliness); }
+.cleanliness .pip.half { background: linear-gradient(90deg, var(--cleanliness) 50%, var(--pip-off) 50%); }
 
 .species-row {
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  font-size: 12px;
+  margin-bottom: 22px;
+  font-size: 16px;
   color: var(--muted);
 }
 
-.species-value { color: var(--ink); font-size: 14px; font-weight: 700; }
+.species-value { color: var(--ink); font-size: 20px; font-weight: 700; }
 
-/* Pet picker, shown over the whole window. */
-.picker {
+/* Windows that open over the main window. */
+.overlay {
   position: absolute;
   inset: 0;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 24px 20px 20px;
   background: var(--card);
 }
 
-.picker[hidden] { display: none; }
+.overlay[hidden] { display: none; }
+.overlay .panel-title { margin-left: 8px; }
 
-.picker-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.picker-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 0 8px; }
 
-.pick {
+.pick, .destination {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 6px 4px 8px;
+  gap: 10px;
+  padding: 10px 8px 14px;
   font: inherit;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   background: none;
-  border: 2px solid var(--line);
-  border-radius: 10px;
+  border: 3px solid var(--line);
+  border-radius: 14px;
   cursor: pointer;
 }
 
-.pick:hover, .pick:focus-visible { border-color: var(--accent); outline: none; }
+.pick:hover, .pick:focus-visible, .destination:hover, .destination:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
 
 .pick img {
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 112px;
+  height: 112px;
   object-fit: cover;
   background: #000;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
-.picker-note { margin: 14px 0 0; text-align: center; }
-.picker-note[hidden], .picker .btn[hidden] { display: none; }
+.picker-note { margin: 22px 0 0; text-align: center; }
+.picker-note[hidden], .overlay .btn[hidden] { display: none; }
+
+.destinations { display: flex; flex-direction: column; gap: 14px; padding: 0 8px; }
+.destination { flex-direction: row; gap: 16px; padding: 10px; font-size: 18px; }
+.destination img { width: 150px; height: 85px; object-fit: cover; border-radius: 8px; display: block; }
+
+/* A location: backdrop, the pet, and a foreground in front of the pet. */
+.scene {
+  position: relative;
+  width: 460px;
+  height: 260px;
+  flex: none;
+  overflow: hidden;
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: #000;
+}
+
+.scene img { position: absolute; display: block; }
+.scene-back, .scene-front { inset: 0; width: 100%; height: 100%; }
+
+.scene-pet {
+  left: 50%;
+  bottom: 54px;
+  width: 140px;
+  height: 140px;
+  transform: translateX(-50%);
+  object-fit: cover;
+  object-position: 40% 40%;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.scene[data-location="bathhouse"] .scene-pet { bottom: 60px; }
+
+.location-body { padding: 16px 8px 0; }
+.location-body[hidden] { display: none; }
+
+.money-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px 10px;
+  color: var(--muted);
+}
+
+.location-body .money-row { padding: 0 0 10px; }
+
+.money { color: var(--ink); font-size: 18px; font-weight: 700; }
+
+.shop-list, .item-list { display: flex; flex-direction: column; }
+.item-list { padding: 0 8px; overflow-y: auto; }
+
+.list-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.item-name { font-weight: 600; }
+.price { color: var(--muted); }
+
+.message { min-height: 22px; margin: 14px 8px 0; color: var(--ink); text-align: center; }
 
 /* Debug tab */
-.debug { align-items: stretch; gap: 9px; }
+.debug { align-items: stretch; gap: 16px; }
 
 .debug-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
+  gap: 12px;
+  font-size: 15px;
 }
 
 .debug-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 9px;
+  gap: 10px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
 }
 
 .seg, .small-btn {
   font: inherit;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.segmented { display: flex; background: var(--pip-off); border-radius: 999px; padding: 2px; }
+.segmented { display: flex; background: var(--pip-off); border-radius: 999px; padding: 3px; }
 
 .seg {
-  padding: 3px 9px;
+  padding: 6px 14px;
   color: var(--muted);
   background: none;
   border: 0;
@@ -328,28 +418,29 @@ body {
 .seg[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); }
 
 .small-btn {
-  padding: 4px 10px;
+  padding: 6px 16px;
   color: var(--ink);
   background: none;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: 999px;
   white-space: nowrap;
 }
 
+.small-btn:hover:not(:disabled) { border-color: var(--accent); }
 .small-btn:disabled { opacity: 0.45; cursor: default; }
 
 input[type="time"] {
   flex: 1;
   min-width: 0;
-  padding: 3px 6px;
+  padding: 6px 10px;
   font: inherit;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--ink);
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
 }
 
-.hint { color: var(--muted); font-size: 11px; }
+.hint { color: var(--muted); font-size: 14px; }
 
 .mono { font-family: ui-monospace, Consolas, monospace; }

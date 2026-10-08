@@ -1,4 +1,5 @@
-// Connects the pet rules to the page: drawing, buttons, tabs, the pet picker,
+// Connects the pet rules to the page: drawing, buttons, tabs, the windows
+// that open over the main window (pet picker, travel, locations, items),
 // timers, the clock, and saving.
 (function () {
   'use strict';
@@ -14,16 +15,24 @@
     dog: { idle: 'assets/dog.jpg', blink: null }
   };
 
+  // Placeholder art for each travel destination: a backdrop behind the pet
+  // and a foreground in front of it (a counter, the front of a tub).
+  var LOCATION_ART = {
+    shop: { back: 'assets/locations/shop.svg', front: 'assets/locations/shop-front.svg' },
+    bathhouse: { back: 'assets/locations/bathhouse.svg', front: 'assets/locations/bathhouse-front.svg' }
+  };
+
   var STATUS_METERS = [
     { key: 'health', label: 'Health' },
     { key: 'fullness', label: 'Fullness' },
-    { key: 'fitness', label: 'Fitness' }
+    { key: 'fitness', label: 'Fitness' },
+    { key: 'cleanliness', label: 'Cleanliness' }
   ];
 
   var MOOD_LABELS = { happy: 'Happy', okay: 'Okay', sad: 'Sad', sick: 'Sick' };
 
   function face(fill, inner) {
-    return '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">' +
+    return '<svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true">' +
       '<circle cx="12" cy="12" r="10" fill="' + fill + '" stroke="#3b3530" stroke-width="1.3"/>' +
       '<g fill="none" stroke="#3b3530" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
       inner + '</g></svg>';
@@ -37,11 +46,16 @@
   };
 
   var TABS = ['pet', 'status', 'attributes', 'debug'];
+  var OVERLAYS = ['picker', 'travelMenu', 'location', 'inventory'];
 
   var data = null; // Null until a pet has been chosen.
   var els = {};
   var meters = {}; // Meter elements by stat or attribute key.
   var shownMood = null;
+  var shownPoops = null; // The poop positions currently drawn, as a string.
+  var openOverlayName = null;
+  var pickerCanCancel = true;
+  var currentLocation = null;
 
   function persist() {
     if (data) LilStorage.save(data);
@@ -69,8 +83,12 @@
   }
 
   function formatCountdown(ms) {
-    var totalSeconds = Math.ceil(ms / 1000);
+    var totalSeconds = Math.max(0, Math.ceil(ms / 1000));
     return Math.floor(totalSeconds / 60) + ':' + pad(totalSeconds % 60);
+  }
+
+  function formatMoney(amount) {
+    return '$' + amount.toLocaleString('en-US');
   }
 
   // Builds a labeled five-segment meter row and remembers it under `key`.
@@ -129,6 +147,23 @@
     els.clockReadout.textContent = label;
   }
 
+  // Draws a poop emoji at each saved spot on the picture.
+  function renderPoops(poops) {
+    var key = JSON.stringify(poops);
+    if (key === shownPoops) return;
+    shownPoops = key;
+    els.poops.textContent = '';
+    poops.forEach(function (spot) {
+      var el = document.createElement('span');
+      el.className = 'poop';
+      el.textContent = '💩';
+      el.style.left = spot.x + '%';
+      el.style.top = spot.y + '%';
+      els.poops.appendChild(el);
+    });
+    els.poops.setAttribute('aria-label', poops.length + ' poops');
+  }
+
   function render() {
     if (!data) return;
     var pet = data.pet;
@@ -140,6 +175,7 @@
     }
     els.critter.alt = pet.name + ' the ' + Pet.SPECIES_NAMES[pet.species];
     els.portrait.classList.toggle('pixel', pet.species === 'clown');
+    renderPoops(pet.poops);
 
     els.name.textContent = pet.name;
     els.name.title = pet.name;
@@ -163,14 +199,18 @@
     els.feed.disabled = pet.fullness >= Pet.MAX_STAT;
     els.medicine.disabled = pet.health >= Pet.MAX_STAT;
     els.train.disabled = pet.fitness >= Pet.MAX_STAT;
+    els.clean.disabled = pet.poops.length === 0;
     els.lights.textContent = pet.lightsOn ? 'Lights off' : 'Lights on';
     els.lights.setAttribute('aria-pressed', String(!pet.lightsOn));
 
     var pace = data.settings.hungerPace;
     els.paceNormal.setAttribute('aria-pressed', String(pace === 'normal'));
     els.paceFast.setAttribute('aria-pressed', String(pace === 'fast'));
-
     els.countdown.textContent = formatCountdown(Pet.msUntilNextStep(pet, stepMs()));
+    els.poopCountdown.textContent = formatCountdown(pet.nextPoopMs);
+    els.poopCount.textContent = pet.poops.length === 1 ? '1 poop on the floor' : pet.poops.length + ' poops on the floor';
+    els.poopNow.disabled = pet.poops.length >= Pet.MAX_POOPS;
+
     var onSystemClock = Math.abs(data.settings.clockOffsetMs) < 1000;
     els.clockMode.textContent = onSystemClock ? 'System clock' : 'Custom time';
     els.clockSystem.disabled = onSystemClock;
@@ -235,18 +275,28 @@
     }
   }
 
-  // Opens the pet picker. `canCancel` is false on the very first run, when
-  // there is no current pet to go back to.
-  function openPicker(canCancel) {
-    els.pickerNote.hidden = !canCancel;
-    els.pickerCancel.hidden = !canCancel;
-    els.picker.hidden = false;
-    var first = els.pickerOptions.querySelector('button');
+  // ----- Windows that open over the main window -----
+
+  function openOverlay(name) {
+    OVERLAYS.forEach(function (other) { els[other].hidden = other !== name; });
+    openOverlayName = name;
+    var first = els[name].querySelector('button:not([disabled])');
     if (first) first.focus();
   }
 
-  function closePicker() {
-    els.picker.hidden = true;
+  function closeOverlay() {
+    OVERLAYS.forEach(function (name) { els[name].hidden = true; });
+    openOverlayName = null;
+    currentLocation = null;
+  }
+
+  // The pet picker. `canCancel` is false on the very first run, when there
+  // is no current pet to go back to.
+  function openPicker(canCancel) {
+    pickerCanCancel = canCancel;
+    els.pickerNote.hidden = !canCancel;
+    els.pickerCancel.hidden = !canCancel;
+    openOverlay('picker');
   }
 
   function choosePet(species) {
@@ -254,7 +304,8 @@
     data = Pet.newSave(Names.generate(), species, Date.now());
     if (settings) data.settings = settings; // Keep the debug settings.
     shownMood = null;
-    closePicker();
+    shownPoops = null;
+    closeOverlay();
     showTab('pet');
     render();
     persist();
@@ -275,6 +326,137 @@
       button.appendChild(label);
       button.addEventListener('click', function () { choosePet(species); });
       els.pickerOptions.appendChild(button);
+    });
+  }
+
+  // Travel: a menu of destinations, then a window showing the pet there.
+  function buildDestinations() {
+    Pet.LOCATIONS.forEach(function (place) {
+      var button = document.createElement('button');
+      button.className = 'destination';
+      button.dataset.location = place;
+      var img = document.createElement('img');
+      img.src = LOCATION_ART[place].back;
+      img.alt = '';
+      var label = document.createElement('span');
+      label.textContent = Pet.LOCATION_NAMES[place];
+      button.appendChild(img);
+      button.appendChild(label);
+      button.addEventListener('click', function () { goTo(place); });
+      els.destinations.appendChild(button);
+    });
+  }
+
+  function goTo(place) {
+    tick();
+    var pet = data.pet;
+    currentLocation = place;
+    els.locationTitle.textContent = Pet.LOCATION_NAMES[place];
+    els.scene.dataset.location = place;
+    els.sceneBack.src = LOCATION_ART[place].back;
+    els.sceneFront.src = LOCATION_ART[place].front;
+    els.scenePet.src = ART[pet.species].idle;
+    els.scenePet.alt = pet.name + ' at ' + Pet.LOCATION_NAMES[place];
+    els.scenePet.classList.toggle('pixel', pet.species === 'clown');
+    els.locationBody.hidden = place !== 'shop';
+    els.locationMessage.textContent = '';
+
+    if (place === 'bathhouse') {
+      Pet.bathe(pet);
+      els.locationMessage.textContent = pet.name + ' had a long soak. Cleanliness is full.';
+      render();
+      persist();
+    } else {
+      renderShop();
+    }
+    openOverlay('location');
+  }
+
+  function renderShop() {
+    var pet = data.pet;
+    els.shopMoney.textContent = formatMoney(pet.inventory.money);
+    els.shopList.textContent = '';
+    Pet.SHOP_STOCK.forEach(function (stock) {
+      var item = Pet.ITEMS[stock.id];
+      var row = document.createElement('div');
+      row.className = 'list-row';
+      var name = document.createElement('span');
+      name.className = 'item-name';
+      name.textContent = item.name;
+      var owned = pet.inventory.items[stock.id];
+      if (owned) {
+        var note = document.createElement('span');
+        note.className = 'hint';
+        note.textContent = ' (have ' + owned + ')';
+        name.appendChild(note);
+      }
+      var price = document.createElement('span');
+      price.className = 'price mono';
+      price.textContent = formatMoney(stock.price);
+      var button = document.createElement('button');
+      button.className = 'small-btn';
+      button.dataset.buy = stock.id;
+      button.textContent = 'Buy';
+      button.disabled = pet.inventory.money < stock.price;
+      button.addEventListener('click', function () {
+        if (Pet.buy(data.pet, stock.id)) {
+          els.locationMessage.textContent = data.pet.name + ' bought a ' + item.name.toLowerCase() + '.';
+          persist();
+        }
+        renderShop();
+      });
+      row.appendChild(name);
+      row.appendChild(price);
+      row.appendChild(button);
+      els.shopList.appendChild(row);
+    });
+  }
+
+  // Items: everything the pet owns, with a Use button for each.
+  function openInventory() {
+    tick();
+    els.inventoryMessage.textContent = '';
+    renderInventory();
+    openOverlay('inventory');
+  }
+
+  function renderInventory() {
+    var pet = data.pet;
+    els.inventoryMoney.textContent = formatMoney(pet.inventory.money);
+    els.itemList.textContent = '';
+    var ids = Object.keys(Pet.ITEMS).filter(function (id) { return pet.inventory.items[id] > 0; });
+    if (ids.length === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = 'No items.';
+      els.itemList.appendChild(empty);
+    }
+    ids.forEach(function (id) {
+      var item = Pet.ITEMS[id];
+      var row = document.createElement('div');
+      row.className = 'list-row';
+      var name = document.createElement('span');
+      name.className = 'item-name';
+      name.textContent = item.name;
+      var count = document.createElement('span');
+      count.className = 'hint';
+      count.textContent = Pet.describeCount(id, pet.inventory.items[id]);
+      var button = document.createElement('button');
+      button.className = 'small-btn';
+      button.dataset.use = id;
+      button.textContent = 'Use';
+      button.addEventListener('click', function () {
+        var result = Pet.useItem(data.pet, id);
+        if (result.used) {
+          els.inventoryMessage.textContent = result.item.floater + ' — ' + data.pet.name + ' ' + result.item.useText;
+          persist();
+        }
+        renderInventory();
+      });
+      row.appendChild(name);
+      row.appendChild(count);
+      row.appendChild(button);
+      els.itemList.appendChild(row);
     });
   }
 
@@ -308,9 +490,19 @@
       floatText(result.injured ? 'Ouch!' : '+½', result.injured ? 'bad' : 'good');
     }));
 
+    els.clean.addEventListener('click', act(function () {
+      if (Pet.cleanUp(data.pet) > 0) floatText('Clean!', 'good');
+    }));
+
     els.lights.addEventListener('click', act(function () {
       Pet.toggleLights(data.pet);
     }));
+
+    els.travel.addEventListener('click', function () { openOverlay('travelMenu'); });
+    els.travelCancel.addEventListener('click', closeOverlay);
+    els.leave.addEventListener('click', closeOverlay);
+    els.items.addEventListener('click', openInventory);
+    els.inventoryClose.addEventListener('click', closeOverlay);
 
     els.paceNormal.addEventListener('click', act(function () {
       data.settings.hungerPace = 'normal';
@@ -318,6 +510,10 @@
 
     els.paceFast.addEventListener('click', act(function () {
       data.settings.hungerPace = 'fast';
+    }));
+
+    els.poopNow.addEventListener('click', act(function () {
+      Pet.poopNow(data.pet);
     }));
 
     els.clockSet.addEventListener('click', act(function () {
@@ -335,19 +531,34 @@
     }));
 
     els.reset.addEventListener('click', function () { openPicker(true); });
-    els.pickerCancel.addEventListener('click', closePicker);
+    els.pickerCancel.addEventListener('click', closeOverlay);
+
+    // Escape closes an open window, except the first-run picker.
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape' || !openOverlayName) return;
+      if (openOverlayName === 'picker' && !pickerCanCancel) return;
+      closeOverlay();
+    });
   }
 
   function init() {
     var ids = {
-      portrait: 'portrait', critter: 'critter', mood: 'mood', floaters: 'floaters',
+      portrait: 'portrait', critter: 'critter', poops: 'poops', mood: 'mood', floaters: 'floaters',
       clock: 'clock', handHour: 'hand-hour', handMinute: 'hand-minute', handSecond: 'hand-second',
       name: 'name', species: 'species', statusMeters: 'status-meters', attributeMeters: 'attribute-meters',
-      feed: 'feed', medicine: 'medicine', train: 'train', lights: 'lights',
+      travel: 'travel', items: 'items',
+      feed: 'feed', medicine: 'medicine', train: 'train', clean: 'clean', lights: 'lights',
       paceNormal: 'pace-normal', paceFast: 'pace-fast', countdown: 'countdown',
+      poopCountdown: 'poop-countdown', poopCount: 'poop-count', poopNow: 'poop-now',
       clockReadout: 'clock-readout', clockInput: 'clock-input', clockSet: 'clock-set',
       clockMode: 'clock-mode', clockSystem: 'clock-system', reset: 'reset',
-      picker: 'picker', pickerOptions: 'picker-options', pickerNote: 'picker-note', pickerCancel: 'picker-cancel'
+      picker: 'picker', pickerOptions: 'picker-options', pickerNote: 'picker-note', pickerCancel: 'picker-cancel',
+      travelMenu: 'travel-menu', destinations: 'destinations', travelCancel: 'travel-cancel',
+      location: 'location', locationTitle: 'location-title', scene: 'scene', sceneBack: 'scene-back',
+      scenePet: 'scene-pet', sceneFront: 'scene-front', locationBody: 'location-body',
+      shopMoney: 'shop-money', shopList: 'shop-list', locationMessage: 'location-message', leave: 'leave',
+      inventory: 'inventory', inventoryMoney: 'inventory-money', itemList: 'item-list',
+      inventoryMessage: 'inventory-message', inventoryClose: 'inventory-close'
     };
     Object.keys(ids).forEach(function (key) { els[key] = document.getElementById(ids[key]); });
     TABS.forEach(function (tab) {
@@ -358,6 +569,7 @@
     STATUS_METERS.forEach(function (m) { buildMeter(els.statusMeters, m.key, m.label); });
     Pet.ATTRIBUTES.forEach(function (key) { buildMeter(els.attributeMeters, key, Pet.ATTRIBUTE_NAMES[key]); });
     buildPicker();
+    buildDestinations();
     bindEvents();
 
     var now = Date.now();

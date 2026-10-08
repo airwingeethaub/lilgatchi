@@ -184,7 +184,7 @@ test('the three species and five attributes are named as the owner asked', funct
 
 test('newSave records the chosen species', function () {
   var d = Pet.newSave('Bart', 'dog', 0);
-  assert.equal(d.version, 3);
+  assert.equal(d.version, 4);
   assert.equal(d.pet.species, 'dog');
   assert.deepEqual(d.settings, { hungerPace: 'normal', clockOffsetMs: 0 });
 });
@@ -196,7 +196,7 @@ test('a version 2 save is upgraded to a frog with zero attributes and no 2x sett
       bedtime: 1260, wakeTime: 420, lastUpdate: 1000 },
     settings: { speed: 2, hungerPace: 'fast', clockOffsetMs: 60000 }
   });
-  assert.equal(d.version, 3);
+  assert.equal(d.version, 4);
   assert.equal(d.pet.species, 'frog');
   assert.equal(d.pet.fitness, 1.5);
   assert.equal(d.pet.lightsOn, false);
@@ -211,7 +211,7 @@ test('a version 1 save is upgraded without losing the pet', function () {
     settings: { speed: 2 }
   };
   var d = Pet.migrate(old);
-  assert.equal(d.version, 3);
+  assert.equal(d.version, 4);
   assert.equal(d.pet.name, 'Fleegul');
   assert.equal(d.pet.species, 'frog');
   assert.equal(d.pet.fullness, 3);
@@ -242,6 +242,241 @@ test('bad or unknown saves are rejected or repaired', function () {
   assert.equal(d.pet.fitness, 2.5);
   assert.equal(d.pet.stepProgress, 0);
   assert.deepEqual(d.settings, { hungerPace: 'normal', clockOffsetMs: 0 });
+});
+
+// A repeatable stand-in for Math.random, so two runs see the same "random" numbers.
+function seeded(seed) {
+  return function () {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+}
+
+function constant(value) {
+  return function () { return value; };
+}
+
+test('a new pet starts clean, with the starting items and $1000', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  assert.equal(p.cleanliness, 5);
+  assert.deepEqual(p.poops, []);
+  assert.deepEqual(p.inventory, { money: 1000, items: { md2020: 1, ngage: 1, pallmall: 10 } });
+  assert.equal(Pet.ITEMS.md2020.name, 'MD 20/20');
+  assert.equal(Pet.ITEMS.ngage.name, 'Nokia N-Gage');
+  assert.equal(Pet.ITEMS.pallmall.name, 'Pall Mall Menthols');
+});
+
+test('starting items are copied, so one pet cannot change another', function () {
+  var a = Pet.create('A', 'frog', 0);
+  var b = Pet.create('B', 'frog', 0);
+  Pet.useItem(a, 'pallmall');
+  assert.equal(b.inventory.items.pallmall, 10);
+  assert.equal(Pet.STARTING_ITEMS.pallmall, 10);
+});
+
+test('cleanliness drops by 0.5 every 30 minutes, whatever the hunger pace, and stops at 0', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  p.nextPoopMs = 1e12; // No poop in this test.
+  Pet.advance(p, 30 * MIN - 1, NORMAL);
+  assert.equal(p.cleanliness, 5);
+  Pet.advance(p, 1, NORMAL);
+  assert.equal(p.cleanliness, 4.5);
+  Pet.advance(p, 60 * MIN, FAST);
+  assert.equal(p.cleanliness, 3.5);
+  Pet.advance(p, 24 * 60 * MIN, NORMAL);
+  assert.equal(p.cleanliness, 0);
+});
+
+test('the bathhouse fills cleanliness and restarts its timer', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  p.nextPoopMs = 1e12;
+  Pet.advance(p, 95 * MIN, NORMAL);
+  assert.equal(p.cleanliness, 3.5);
+  Pet.bathe(p);
+  assert.equal(p.cleanliness, 5);
+  Pet.advance(p, 29 * MIN, NORMAL);
+  assert.equal(p.cleanliness, 5);
+  Pet.advance(p, 1 * MIN, NORMAL);
+  assert.equal(p.cleanliness, 4.5);
+});
+
+test('poop arrives between 30 and 100 minutes apart', function () {
+  var early = Pet.create('A', 'frog', 0, constant(0));
+  Pet.advance(early, 30 * MIN - 1, NORMAL, constant(0));
+  assert.equal(early.poops.length, 0);
+  Pet.advance(early, 1, NORMAL, constant(0));
+  assert.equal(early.poops.length, 1);
+
+  var late = Pet.create('B', 'frog', 0, constant(0.9999999));
+  Pet.advance(late, 99.99 * MIN, NORMAL, constant(0.9999999));
+  assert.equal(late.poops.length, 0);
+  Pet.advance(late, 0.02 * MIN, NORMAL, constant(0.9999999));
+  assert.equal(late.poops.length, 1);
+
+  var rand = seeded(7);
+  for (var i = 0; i < 1000; i++) {
+    var p = Pet.create('C', 'frog', 0, rand);
+    assert.ok(p.nextPoopMs >= 30 * MIN && p.nextPoopMs <= 100 * MIN);
+  }
+});
+
+test('poops land inside the picture, away from the top-corner badges', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  var rand = seeded(3);
+  for (var i = 0; i < 500; i++) {
+    Pet.cleanUp(p);
+    Pet.poopNow(p, rand);
+    var spot = p.poops[0];
+    assert.ok(spot.x >= 10 && spot.x <= 90, String(spot.x));
+    assert.ok(spot.y >= 24 && spot.y <= 90, String(spot.y));
+  }
+});
+
+test('more than 4 poops costs 0.5 health every 5 minutes; 4 poops costs nothing', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  p.nextPoopMs = 1e12;
+  for (var i = 0; i < 4; i++) Pet.poopNow(p);
+  p.fullness = 5;
+  Pet.advance(p, 20 * MIN, NORMAL); // fullness 5 -> 1, still food, so no starving
+  assert.equal(p.health, 5);
+  Pet.poopNow(p); // 5 poops
+  p.fullness = 5;
+  Pet.advance(p, 5 * MIN - 1, NORMAL);
+  assert.equal(p.health, 5);
+  Pet.advance(p, 1, NORMAL);
+  assert.equal(p.health, 4.5);
+  Pet.advance(p, 10 * MIN, NORMAL);
+  assert.equal(p.health, 3.5);
+});
+
+test('cleaning up removes every poop and restarts the pile penalty', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  p.nextPoopMs = 1e12;
+  for (var i = 0; i < 6; i++) Pet.poopNow(p);
+  Pet.advance(p, 4 * MIN, NORMAL);
+  assert.equal(Pet.cleanUp(p), 6);
+  assert.equal(p.poops.length, 0);
+  for (i = 0; i < 5; i++) Pet.poopNow(p);
+  Pet.advance(p, 4 * MIN, NORMAL); // only 4 minutes since the pile came back
+  assert.equal(p.health, 5);
+  Pet.advance(p, 1 * MIN, NORMAL);
+  assert.equal(p.health, 4.5);
+});
+
+test('poop stops piling up at the limit', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  for (var i = 0; i < 20; i++) Pet.poopNow(p);
+  assert.equal(p.poops.length, Pet.MAX_POOPS);
+  assert.equal(Pet.poopNow(p), false);
+});
+
+test('a long absence plays out the same as many small ticks', function () {
+  var a = Pet.create('A', 'frog', 0, seeded(11));
+  var b = Pet.create('B', 'frog', 0, seeded(11));
+  var randA = seeded(42);
+  var randB = seeded(42);
+  Pet.advance(a, 8 * 60 * MIN, NORMAL, randA);
+  for (var i = 0; i < 8 * 60 * 4; i++) Pet.advance(b, 15 * 1000, NORMAL, randB);
+  assert.equal(a.fullness, b.fullness);
+  assert.equal(a.health, b.health);
+  assert.equal(a.cleanliness, b.cleanliness);
+  assert.equal(a.poops.length, b.poops.length);
+  assert.ok(a.poops.length > 0);
+});
+
+test('a month away settles at the bottom without errors', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  Pet.advance(p, 30 * 24 * 60 * MIN, FAST);
+  assert.equal(p.fullness, 0);
+  assert.equal(p.health, 0);
+  assert.equal(p.cleanliness, 0);
+  assert.equal(p.poops.length, Pet.MAX_POOPS);
+});
+
+test('using items: drinks and cigarettes run out, the N-Gage does not', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  var r = Pet.useItem(p, 'md2020');
+  assert.equal(r.used, true);
+  assert.equal(r.consumed, true);
+  assert.equal('md2020' in p.inventory.items, false);
+  assert.equal(Pet.useItem(p, 'md2020').used, false);
+
+  Pet.useItem(p, 'pallmall');
+  assert.equal(p.inventory.items.pallmall, 9);
+
+  r = Pet.useItem(p, 'ngage');
+  assert.equal(r.used, true);
+  assert.equal(r.consumed, false);
+  assert.equal(p.inventory.items.ngage, 1);
+
+  assert.equal(Pet.useItem(p, 'nothing').used, false);
+  assert.equal(p.inventory.money, 1000);
+});
+
+test('item counts read naturally', function () {
+  assert.equal(Pet.describeCount('md2020', 1), '1 pint');
+  assert.equal(Pet.describeCount('pallmall', 10), '10 cigarettes');
+  assert.equal(Pet.describeCount('pallmall', 1), '1 cigarette');
+  assert.equal(Pet.describeCount('ngage', 1), '');
+  assert.equal(Pet.describeCount('longsword', 2), '\u00d72');
+});
+
+test('The Shop sells a vape, a rusty longsword, and a bug in a jar at $500 each', function () {
+  assert.deepEqual(Pet.SHOP_STOCK.map(function (s) { return [Pet.ITEMS[s.id].name, s.price]; }),
+    [['Vape', 500], ['Rusty longsword', 500], ['Bug in a jar', 500]]);
+  assert.deepEqual(Pet.LOCATIONS.map(function (k) { return Pet.LOCATION_NAMES[k]; }), ['The Shop', 'Bathhouse']);
+});
+
+test('buying spends money and adds the item; it fails without enough money', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  assert.equal(Pet.buy(p, 'vape'), true);
+  assert.equal(p.inventory.money, 500);
+  assert.equal(p.inventory.items.vape, 1);
+  assert.equal(Pet.buy(p, 'vape'), true);
+  assert.equal(p.inventory.items.vape, 2);
+  assert.equal(p.inventory.money, 0);
+  assert.equal(Pet.buy(p, 'bugjar'), false);
+  assert.equal('bugjar' in p.inventory.items, false);
+  p.inventory.money = 5000;
+  assert.equal(Pet.buy(p, 'md2020'), false); // The Shop does not sell it.
+  assert.equal(p.inventory.money, 5000);
+});
+
+test('medicine tops health up to 5 from a half point', function () {
+  var p = Pet.create('Bart', 'frog', 0);
+  p.health = 4.5;
+  assert.equal(Pet.giveMedicine(p), true);
+  assert.equal(p.health, 5);
+});
+
+test('a version 3 save gets cleanliness, no poop, and the starting items', function () {
+  var d = Pet.migrate({
+    version: 3,
+    pet: { name: 'Glonk', species: 'clown', fullness: 4, health: 3, fitness: 2,
+      attributes: { rowdiness: 0, angst: 0, tism: 0, sin: 0, diligence: 0 },
+      stepProgress: 0.5, lightsOn: true, bedtime: 1260, wakeTime: 420, lastUpdate: 1000 },
+    settings: { hungerPace: 'normal', clockOffsetMs: 0 }
+  });
+  assert.equal(d.version, 4);
+  assert.equal(d.pet.species, 'clown');
+  assert.equal(d.pet.health, 3);
+  assert.equal(d.pet.cleanliness, 5);
+  assert.deepEqual(d.pet.poops, []);
+  assert.deepEqual(d.pet.inventory, { money: 1000, items: { md2020: 1, ngage: 1, pallmall: 10 } });
+  assert.ok(d.pet.nextPoopMs >= 30 * MIN && d.pet.nextPoopMs <= 100 * MIN);
+});
+
+test('bad inventory and poop data are repaired', function () {
+  var d = Pet.migrate({
+    version: 4,
+    pet: { name: 'X', lastUpdate: 0, inventory: { money: -5, items: { vape: 2, laser: 3, pallmall: 'many' } },
+      poops: [{ x: 50, y: 50 }, null, { x: 'a' }, { x: 500, y: -2 }], nextPoopMs: 'soon', cleanliness: 7 },
+    settings: {}
+  });
+  assert.deepEqual(d.pet.inventory, { money: 0, items: { vape: 2 } });
+  assert.deepEqual(d.pet.poops, [{ x: 50, y: 50 }, { x: 100, y: 0 }]);
+  assert.ok(d.pet.nextPoopMs >= 30 * MIN && d.pet.nextPoopMs <= 100 * MIN);
+  assert.equal(d.pet.cleanliness, 5);
 });
 
 test('negative or missing time does nothing', function () {

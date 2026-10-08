@@ -24,18 +24,22 @@ Standing rules that follow from this decision, so that the move to an .exe stays
 
 ### The window (owner)
 
-The pet lives in one small window, about the size of a pack of playing cards (250 by 350 pixels). The window has four tabs:
+The pet lives in one window, 500 by 700 pixels. It started at about the size of a pack of playing cards (250 by 350), and the owner later asked for it to be doubled; Claude took that to mean doubling both the width and the height, and scaled the text, buttons, and picture up to match. The window has four tabs:
 
-- **Pet** shows the pet's picture, its name, its mood icon, and a small analog clock. Under the picture are Travel, Play, and Items buttons, and below those the care buttons: Feed, Medicine, Train, and Lights.
-- **Status** shows the health, fullness, and fitness bars. The owner moved these off the Pet tab, while keeping the mood icon next to the picture.
+- **Pet** shows the pet's picture, its name, its mood icon, a small analog clock, and any poop. Under the picture are Travel, Play, and Items buttons, and at the bottom the care buttons: Feed, Medicine, Train, Clean, and Lights.
+- **Status** shows the health, fullness, fitness, and cleanliness bars. The owner moved these off the Pet tab, while keeping the mood icon next to the picture.
 - **Attributes** shows the pet's species and its personality attributes.
 - **Debug** holds testing tools.
 
 Claude placed the clock and the mood icon as round badges on the top corners of the picture, to save space, and added the number next to each bar on the Status and Attributes tabs. Buttons that would do nothing, such as Feed when the pet is full, are greyed out. (Claude defaults.)
 
-### Travel, Play, and Items (owner)
+### Play (owner)
 
-These three buttons are placeholders and do nothing yet. They are shown greyed out, with a "Coming soon" tooltip, so it is clear they are not broken (Claude default).
+The Play button is a placeholder and does nothing yet. It is shown greyed out, with a "Coming soon" tooltip, so it is clear it is not broken (Claude default). Travel and Items started out as placeholders too; they now work, as described below.
+
+### Windows over the main window (Claude default)
+
+The owner asked for The Shop to open in a new window. Claude made the Travel menu, each location, the Items list, and the pet picker appear as windows drawn over the main window, filling it, rather than as separate browser windows. Browsers block or clutter separate pop-up windows, and the same approach will carry over to the .exe. Each has a button to close it (Leave, Close, Stay home, or Cancel), and the Escape key also closes it. Time keeps passing while one is open.
 
 ### Choosing a pet (owner)
 
@@ -47,11 +51,14 @@ Besides its species, each pet has five attributes: Rowdiness, Angst, 'Tism, Sin,
 
 ### Stats (owner)
 
-The pet has three stats, each ranging from 0 to 5 and shown as a five-segment bar:
+The pet has four stats, each ranging from 0 to 5 and shown as a five-segment bar:
 
-- **Health** starts at 5.
-- **Fullness** starts at 5.
-- **Fitness** starts at 0. It moves in half units, so its bar can show half-filled segments. The owner chose a maximum of 5 to match the other stats, rather than no maximum.
+- **Health** starts at 5. It can now move in half units, because a poop pile costs 0.5 health at a time.
+- **Fullness** starts at 5. It moves in whole units.
+- **Fitness** starts at 0. It moves in half units. The owner chose a maximum of 5 to match the other stats, rather than no maximum.
+- **Cleanliness** (owner) starts at 5 (Claude default) and moves in half units.
+
+Bars show half-filled segments for half units.
 
 ### Hunger and health (owner)
 
@@ -60,6 +67,18 @@ Fullness drops by 1 at a steady pace: every 5 minutes normally. Health drops at 
 Health does not recover on its own. The only way to raise it is Medicine. An earlier Claude default had health slowly recovering while the pet had food; the owner chose to remove that when Medicine was added.
 
 There is no death or game over yet. A pet at 0 health shows as sick and can still be given medicine.
+
+### Cleanliness and the Bathhouse (owner)
+
+Cleanliness drops by 0.5 every 30 minutes, down to 0. This is a fixed 30 minutes; the debug hunger pace does not change it (Claude default). Going to the Bathhouse fills cleanliness to 5 straight away and restarts the 30-minute countdown (Claude default). Cleanliness does not affect anything else yet, and it is separate from poop: cleaning up poop does not change cleanliness, and poop does not lower it (Claude default).
+
+### Poop (owner)
+
+The pet poops at random intervals of 30 to 100 minutes, with every length in that range equally likely. Each poop appears as a poop emoji at a random spot on the pet's picture, kept away from the edges and from the clock and mood badges (Claude default). It stays there until cleaned up. The Clean button removes all of them at once (Claude default), and is greyed out when there is nothing to clean.
+
+If more than 4 poops pile up (5 or more), health drops by 0.5 every 5 minutes for as long as the pile stays. This is a fixed 5 minutes, not tied to the debug hunger pace. Cleaning restarts that countdown, so a new pile gets a full 5 minutes before it hurts (Claude default).
+
+To keep the picture readable, poop stops piling up at 12 (Claude default). Poop happens at all hours, including while the pet is asleep or away traveling, and it darkens with the picture when the light is off.
 
 ### Care actions
 
@@ -87,11 +106,33 @@ The mood icon is one of four faces, based on health and fullness:
 - Okay: fullness or health is 3.
 - Happy: both are 4 or 5.
 
-Fitness, the light, and sleep do not affect mood yet.
+Fitness, cleanliness, poop, the light, and sleep do not affect mood yet.
 
 ### Time while the window is closed (Claude default)
 
-Time keeps passing while the window is closed, at normal speed, as on a real handheld pet. When the window opens again, the pet catches up on every hunger step it missed. The alternative of pausing the pet while closed was not chosen because it would make the pet feel less alive, but the owner may prefer it.
+Time keeps passing while the window is closed, at normal speed, as on a real handheld pet. When the window opens again, the pet catches up on everything it missed, in the order it would have happened: hunger, cleanliness, poop, and the poop pile's effect on health. The alternative of pausing the pet while closed was not chosen because it would make the pet feel less alive, but the owner may prefer it.
+
+### Items and money (owner, with Claude defaults)
+
+Every new pet starts with $1,000 and three items: a pint of MD 20/20, a Nokia N-Gage, and half a pack of Pall Mall menthols. The Items button opens a list of everything the pet owns, with its money at the top and a Use button for each item.
+
+The owner asked for items to be used up as makes sense. Claude chose:
+
+- **MD 20/20** is counted in pints. Using it drinks the whole pint, so the starting bottle is used up in one go.
+- **Pall Mall menthols** are counted in cigarettes. Half a pack is 10, and each use smokes one.
+- **The Nokia N-Gage, the vape, the rusty longsword, and the bug in a jar** are not used up. They can be used again and again.
+
+Items run out at zero and disappear from the list. Using an item shows a short line about what the pet did, but has no effect on stats or attributes yet (Claude default). Money cannot be used directly; it is spent at The Shop.
+
+A pet from before items existed was given the same starting items and money.
+
+### Travel (owner)
+
+The Travel button opens a menu of places to go: The Shop and the Bathhouse. Going to one opens a window showing the pet at that place, with a Leave button to come home. The pet's picture is shown inside a placeholder scene that Claude drew: shelves and a counter for The Shop, and a tiled room with a tub for the Bathhouse. These are meant to be replaced with real art.
+
+### The Shop (owner)
+
+The Shop sells a vape, a rusty longsword, and a bug in a jar, for $500 each. With the starting $1,000, the pet can afford two. Claude chose that the stock never runs out, that more than one of the same item can be bought, and that the Buy button is greyed out when the pet cannot afford it. The Shop shows how many of each item the pet already has.
 
 ### Debug tab (owner, with Claude additions)
 
@@ -99,6 +140,7 @@ Time keeps passing while the window is closed, at normal speed, as on a real han
 - **Set the clock (owner).** Sets the clock to a chosen time of day; it keeps running from there. "Use system clock" returns to the real time.
 - **New pet (Claude addition, now with the owner's picker).** Opens the pet picker described above. Debug settings are kept when starting over.
 - **Countdown (Claude addition).** A countdown to the next hunger drop.
+- **Poop tools (Claude addition).** A countdown to the next poop, the number of poops on the floor, and a "Poop now" button that adds one straight away, for testing the pile without waiting.
 
 All debug settings are remembered between visits.
 
@@ -114,13 +156,17 @@ The owner supplied a placeholder picture for each species, to use until real art
 
 The owner asked for the pet to blink now and then. A true blink needs a second picture with the eyes closed. Claude first added a quick squash as a stand-in, and the owner had it removed. The code still swaps to a closed-eyes picture now and then if one is added for a species, so blinking will return once real art includes one. The pet does not blink while asleep.
 
-The placeholder pictures come from outside the project, and at least the frog is a well-known character the project does not own. They are fine for private testing, but they should be replaced with the owner's own art before the pet is shared publicly or packaged as an .exe.
+Claude drew simple placeholder scenes for The Shop and the Bathhouse, stored in `assets/locations/`, each as a backdrop behind the pet and a foreground in front of it.
+
+The placeholder pet pictures come from outside the project, and at least the frog is a well-known character the project does not own. They are fine for private testing, but they should be replaced with the owner's own art before the pet is shared publicly or packaged as an .exe.
 
 ## Open questions
 
 - **Names.** Whether every pet keeps a random name or the owner can choose one is undecided.
 - **Final art.** Real art for each species, including a closed-eyes picture for blinking, is still to come.
-- **What fitness, sleep, and attributes are for.** None of them affect anything else yet, and there is no way to raise the attributes.
-- **Travel, Play, and Items.** What these do is undecided.
+- **What fitness, cleanliness, sleep, and attributes are for.** None of them affect anything else yet, and there is no way to raise the attributes.
+- **What items do.** Using an item has no effect yet. Items may later raise or lower stats or attributes.
+- **Play.** What the Play button does is undecided.
+- **More places and stock.** Whether there will be more travel destinations, or more for sale, is undecided.
 - **Changing bedtime.** Whether the owner can change a pet's bedtime and wake time, and where, is undecided.
 - **Death.** Whether the pet can die or run away when neglected is undecided.

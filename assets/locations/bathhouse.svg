@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 260" width="460" height="260">
+  <!-- Placeholder backdrop for the Bathhouse: tiled wall, a window, and steam. -->
+  <defs>
+    <pattern id="tiles" width="28" height="28" patternUnits="userSpaceOnUse">
+      <rect width="28" height="28" fill="#cfe8ee"/>
+      <rect width="26" height="26" x="1" y="1" fill="#e4f3f6"/>
+    </pattern>
+  </defs>
+  <rect width="460" height="260" fill="url(#tiles)"/>
+  <rect x="330" y="26" width="96" height="70" rx="8" fill="#9fd0e8" stroke="#ffffff" stroke-width="6"/>
+  <line x1="378" y1="26" x2="378" y2="96" stroke="#ffffff" stroke-width="4"/>
+  <rect x="150" y="18" width="160" height="34" rx="17" fill="#3f7f99"/>
+  <text x="230" y="41" font-family="Georgia, serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">BATHHOUSE</text>
+  <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.8">
+    <path d="M120 120 q-10 -14 0 -28 t0 -28"/>
+    <path d="M345 128 q-10 -14 0 -28 t0 -28"/>
+    <path d="M60 150 q-8 -12 0 -24 t0 -24"/>
+  </g>
+  <rect y="200" width="460" height="60" fill="#9cc3cc"/>
+</svg>

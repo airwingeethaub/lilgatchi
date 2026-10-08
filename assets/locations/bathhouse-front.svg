@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 260" width="460" height="260">
+  <!-- Foreground for the Bathhouse: the front of the tub, with bubbles. -->
+  <path d="M84 176 h292 v34 q0 40 -40 40 h-212 q-40 0 -40 -40 z" fill="#ffffff" stroke="#b9d3da" stroke-width="3"/>
+  <rect x="76" y="168" width="308" height="14" rx="7" fill="#f4fbfc" stroke="#b9d3da" stroke-width="3"/>
+  <g fill="#ffffff" stroke="#c9e3ea" stroke-width="2">
+    <circle cx="130" cy="166" r="14"/><circle cx="152" cy="160" r="11"/><circle cx="176" cy="166" r="13"/>
+    <circle cx="282" cy="164" r="13"/><circle cx="306" cy="158" r="10"/><circle cx="328" cy="166" r="14"/>
+    <circle cx="230" cy="168" r="9"/>
+  </g>
+  <rect x="112" y="248" width="16" height="12" rx="3" fill="#c8a24a"/>
+  <rect x="332" y="248" width="16" height="12" rx="3" fill="#c8a24a"/>
+</svg>
